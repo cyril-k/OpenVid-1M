@@ -36,6 +36,17 @@ def save_sample(x, fps=8, save_path=None, normalize=True, value_range=(-1, 1)):
     return save_path
 
 
+def custom_collate_fn(batch):
+    # Filter out None items
+    batch = [item for item in batch if item is not None]
+    # Handle empty batches (if all items were None)
+    if len(batch) == 0:
+        return None
+    # Use default PyTorch collation for the remaining batch
+    return torch.utils.data.dataloader.default_collate(batch)
+
+
+
 class StatefulDistributedSampler(DistributedSampler):
     def __init__(
         self,
@@ -115,6 +126,8 @@ def prepare_dataloader(
         drop_last=drop_last,
         pin_memory=pin_memory,
         num_workers=num_workers,
+        prefetch_factor=4,
+        collate_fn=custom_collate_fn,
         **_kwargs,
     )
 

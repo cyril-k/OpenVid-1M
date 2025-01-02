@@ -6,6 +6,7 @@ import torch
 import torchvision
 import torchvision.transforms as transforms
 from torchvision.datasets.folder import IMG_EXTENSIONS, pil_loader
+from torchcodec.decoders import VideoDecoder
 
 from . import video_transforms
 from .utils import center_crop_arr
@@ -87,24 +88,31 @@ class DatasetFromCSV(torch.utils.data.Dataset):
             if is_exit:
                 vframes, aframes, info = torchvision.io.read_video(filename=path, pts_unit="sec", output_format="TCHW")
                 total_frames = len(vframes)
+                # decoder = VideoDecoder(
+                #     source=path,
+                #     num_ffmpeg_threads=2,
+                #     dimension_order="NCHW",
+                # )
+                # total_frames = decoder.metadata.num_frames
             else:
-                total_frames = 0
+                return
+                # total_frames = 0
             
-            loop_index = index
-            while(total_frames < self.num_frames or is_exit == False):
-                loop_index += 1
-                if loop_index >= len(self.samples):
-                    loop_index = 0
-                sample = self.samples[loop_index]
-                path = sample[0]
-                text = sample[1]
+            # loop_index = index
+            # while(total_frames < self.num_frames or is_exit == False):
+            #     loop_index += 1
+            #     if loop_index >= len(self.samples):
+            #         loop_index = 0
+            #     sample = self.samples[loop_index]
+            #     path = sample[0]
+            #     text = sample[1]
 
-                is_exit = os.path.exists(path)
-                if is_exit:
-                    vframes, aframes, info = torchvision.io.read_video(filename=path, pts_unit="sec", output_format="TCHW")
-                    total_frames = len(vframes)
-                else:
-                    total_frames = 0
+            #     is_exit = os.path.exists(path)
+            #     if is_exit:
+            #         vframes, aframes, info = torchvision.io.read_video(filename=path, pts_unit="sec", output_format="TCHW")
+            #         total_frames = len(vframes)
+            #     else:
+            #         total_frames = 0
             #  video exits and total_frames >= self.num_frames
             
             # Sampling video frames
@@ -115,6 +123,7 @@ class DatasetFromCSV(torch.utils.data.Dataset):
             frame_indice = np.linspace(start_frame_ind, end_frame_ind - 1, self.num_frames, dtype=int)
             
             video = vframes[frame_indice]
+            # video = decoder[frame_indice]
             video = self.transform(video)  # T C H W
         else:
             image = pil_loader(path)

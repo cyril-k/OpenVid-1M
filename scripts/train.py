@@ -30,8 +30,6 @@ from openvid.utils.config_utils import (
 from openvid.utils.misc import all_reduce_mean, format_numel_str, get_model_numel, requires_grad, to_torch_dtype
 from openvid.utils.train_utils import update_ema
 import os
-import ipdb
-
 
 def main():
     # ======================================================
@@ -207,6 +205,11 @@ def main():
         ) as pbar:
             for step in pbar:
                 batch = next(dataloader_iter)
+                if batch is None:  # Skip empty batches
+                    logger.info(
+                        f"Received an empty batch from dataloader, skipping..."
+                    )
+                    continue
                 x = batch["video"].to(device, dtype)  # [B, C, T, H, W]
                 y = batch["text"]
 
