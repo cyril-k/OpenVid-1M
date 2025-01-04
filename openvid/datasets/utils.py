@@ -43,7 +43,8 @@ def custom_collate_fn(batch):
     if len(batch) == 0:
         return None
     # Use default PyTorch collation for the remaining batch
-    return torch.utils.data.dataloader.default_collate(batch)
+
+    return torch.utils.data.default_collate(batch)
 
 
 
@@ -126,7 +127,7 @@ def prepare_dataloader(
         drop_last=drop_last,
         pin_memory=pin_memory,
         num_workers=num_workers,
-        prefetch_factor=4,
+        # prefetch_factor=4,
         collate_fn=custom_collate_fn,
         **_kwargs,
     )

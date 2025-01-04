@@ -100,6 +100,7 @@ def main():
         num_frames=cfg.num_frames,
         frame_interval=cfg.frame_interval,
         root=cfg.root,
+        torchcodec=cfg.torchcodec
     )
 
     dataloader = prepare_dataloader(

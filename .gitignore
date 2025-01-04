@@ -165,4 +165,5 @@ logs/*
 wandb/*
 notebooks/*
 outputs/*
-pixart-alpha-checkpooints/*
+pixart-alpha-checkpoints/*
+dataset/*

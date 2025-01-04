@@ -3,8 +3,8 @@ frame_interval = 3
 image_size = (512, 512)
 
 # Define dataset
-root = "/datasets/OpenVid-1M/video"
-data_path = "/datasets/OpenVid-1M/data/train/OpenVid-1M.csv"
+root = "/workspace/dataset/video"
+data_path = "/workspace/dataset/data/train/OpenVid-1M.csv"
 
 use_image_transform = False
 num_workers = 8
@@ -20,7 +20,7 @@ model = dict(
     type="STDiT-XL/2",
     space_scale=1.0,
     time_scale=1.0,
-    from_pretrained="/ml-tests/OpenVid-1M/pixart-alpha-checkpoints/PixArt-XL-2-512x512.pth",
+    from_pretrained="/workspace/pixart-alpha-checkpoints/PixArt-XL-2-512x512.pth",
     enable_flashattn=True,
     enable_layernorm_kernel=True,
 )
@@ -41,8 +41,9 @@ scheduler = dict(
 
 # Others
 seed = 42
-outputs = "/ml-tests/OpenVid-1M/outputs/STDiT-512"
+outputs = "/workspace/outputs/STDiT-512"
 wandb = False
+torchcodec = False
 
 epochs = 1000
 log_every = 10

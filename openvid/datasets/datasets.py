@@ -6,7 +6,7 @@ import torch
 import torchvision
 import torchvision.transforms as transforms
 from torchvision.datasets.folder import IMG_EXTENSIONS, pil_loader
-from torchcodec.decoders import VideoDecoder
+from torchcodec.decoders import SimpleVideoDecoder
 
 from . import video_transforms
 from .utils import center_crop_arr
@@ -57,6 +57,7 @@ class DatasetFromCSV(torch.utils.data.Dataset):
         frame_interval=1,
         transform=None,
         root=None,
+        torchcodec=False,
     ):
         video_samples = []
 
@@ -75,10 +76,22 @@ class DatasetFromCSV(torch.utils.data.Dataset):
         self.transform = transform
         self.num_frames = num_frames
         self.frame_interval = frame_interval
-        self.temporal_sample = video_transforms.TemporalRandomCrop(num_frames * frame_interval)
-        self.root = root
 
-    def getitem(self, index):
+        if torchcodec:
+            print("Using `torchcodec` to read videos")
+            temporal_sample = video_transforms.TemporalSlice(
+                n_frames=num_frames,
+                frame_interval=frame_interval,
+            )
+        else:
+            print("Using `torchvision.io` to read videos")
+            temporal_sample = video_transforms.TemporalRandomCrop(num_frames * frame_interval)
+        
+        self.temporal_sample = temporal_sample
+        self.root = root
+        self.torchcodec = torchcodec
+
+    def __getitem__(self, index):
         sample = self.samples[index]
         path = sample[0]
         text = sample[1]
@@ -86,63 +99,53 @@ class DatasetFromCSV(torch.utils.data.Dataset):
         if self.is_video:
             is_exit = os.path.exists(path)
             if is_exit:
-                vframes, aframes, info = torchvision.io.read_video(filename=path, pts_unit="sec", output_format="TCHW")
-                total_frames = len(vframes)
-                # decoder = VideoDecoder(
-                #     source=path,
-                #     num_ffmpeg_threads=2,
-                #     dimension_order="NCHW",
-                # )
-                # total_frames = decoder.metadata.num_frames
+                if self.torchcodec:
+                    decoder = SimpleVideoDecoder(
+                        source=path,
+                        dimension_order="NCHW",
+                    )
+                    total_frames = decoder.metadata.num_frames
+                    
+                    video = decoder[self.temporal_sample(total_frames)]
+                else:
+                    vframes, aframes, info = torchvision.io.read_video(filename=path, pts_unit="sec", output_format="TCHW")
+                    total_frames = len(vframes)
+                    # Sampling video frames
+                    start_frame_ind, end_frame_ind = self.temporal_sample(total_frames)
+
+                    # print(f"start_frame_ind: {start_frame_ind}; end_frame_ind: {end_frame_ind}; total_frames:{total_frames}")
+                    if not (end_frame_ind - start_frame_ind >= self.num_frames):
+                        print(f"{path} with index {index} has not enough frames.")
+                        return
+                    frame_indice = list(np.linspace(start_frame_ind, end_frame_ind - 1, self.num_frames, dtype=int))
+                    video = vframes[frame_indice]
             else:
                 return
-                # total_frames = 0
             
-            # loop_index = index
-            # while(total_frames < self.num_frames or is_exit == False):
-            #     loop_index += 1
-            #     if loop_index >= len(self.samples):
-            #         loop_index = 0
-            #     sample = self.samples[loop_index]
-            #     path = sample[0]
-            #     text = sample[1]
-
-            #     is_exit = os.path.exists(path)
-            #     if is_exit:
-            #         vframes, aframes, info = torchvision.io.read_video(filename=path, pts_unit="sec", output_format="TCHW")
-            #         total_frames = len(vframes)
-            #     else:
-            #         total_frames = 0
-            #  video exits and total_frames >= self.num_frames
-            
-            # Sampling video frames
-            start_frame_ind, end_frame_ind = self.temporal_sample(total_frames)
-            assert (
-                end_frame_ind - start_frame_ind >= self.num_frames
-            ), f"{path} with index {index} has not enough frames."
-            frame_indice = np.linspace(start_frame_ind, end_frame_ind - 1, self.num_frames, dtype=int)
-            
-            video = vframes[frame_indice]
-            # video = decoder[frame_indice]
+            if len(video) != self.num_frames:
+                print(f"got {len(video)} frames instead of {self.num_frames}.")
+                print(f"Tensor shape: {video.shape}")
+                return
             video = self.transform(video)  # T C H W
         else:
             image = pil_loader(path)
             image = self.transform(image)
             video = image.unsqueeze(0).repeat(self.num_frames, 1, 1, 1)
 
+        # print(f"Frames tenzor size: {video.shape}")
         # TCHW -> CTHW
         video = video.permute(1, 0, 2, 3)
 
         return {"video": video, "text": text}
 
-    def __getitem__(self, index):
-        for _ in range(10):
-            try:
-                return self.getitem(index)
-            except Exception as e:
-                print(e)
-                index = np.random.randint(len(self))
-        raise RuntimeError("Too many bad data.")
+    # def __getitem__(self, index):
+    #     for _ in range(10):
+    #         try:
+    #             return self.getitem(index)
+    #         except Exception as e:
+    #             print(e)
+    #             index = np.random.randint(len(self))
+    #     raise RuntimeError("Too many bad data.")
 
     def __len__(self):
         return len(self.samples)

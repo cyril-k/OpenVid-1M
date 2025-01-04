@@ -431,6 +431,38 @@ class RandomHorizontalFlipVideo:
 #  ------------------------------------------------------------
 #  ---------------------  Sampling  ---------------------------
 #  ------------------------------------------------------------
+class TemporalSlice:
+    """
+    Temporally crop the given frame indices at a random location using a specific number of frames
+    and an interval between frames.
+
+    Args:
+        n_frames (int): Desired number of frames in the crop.
+        frame_interval (int): Desired interval between frames.
+    """
+
+    def __init__(self, n_frames, frame_interval):
+        self.n_frames = n_frames
+        self.frame_interval = frame_interval
+
+    def __call__(self, total_frames):
+        # Calculate the maximum possible interval
+        max_interval = (total_frames - 1) // (self.n_frames - 1) if self.n_frames > 1 else total_frames
+        interval = min(self.frame_interval, max_interval)
+
+        # Calculate the range of valid starting indices
+        effective_length = (self.n_frames - 1) * interval + 1  # Total length of the crop with the selected interval
+        max_start = max(0, total_frames - effective_length)
+        
+        # Randomly choose the starting index
+        start_index = random.randint(0, max_start)
+
+        # Compute the stop index for the slice
+        stop_index = start_index + (self.n_frames - 1) * interval + 1
+
+        # Return the slice
+        return slice(start_index, stop_index, interval)
+
 class TemporalRandomCrop(object):
     """Temporally crop the given frame indices at a random location.
 
